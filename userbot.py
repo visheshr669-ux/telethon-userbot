@@ -5,7 +5,7 @@ import threading
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
-# Render Port Scanning Handler
+# Render Port Fix
 def run_dummy_server():
     PORT = int(os.environ.get("PORT", 8080))
     Handler = http.server.SimpleHTTPRequestHandler
@@ -13,26 +13,27 @@ def run_dummy_server():
         with socketserver.TCPServer(("", PORT), Handler) as httpd:
             httpd.serve_forever()
     except Exception as e:
-        print(f"Port server error: {e}")
+        print(f"Server error: {e}")
 
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-# Telethon Details
+# Telethon Config
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 string_session = os.environ.get("STRING_SESSION")
 
 client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
-# Incoming DM Handler
-@client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
+# Simple Private DM Handler
+@client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
-    sender = await event.get_sender()
-    me = await client.get_me()
-    if sender and not sender.bot and sender.id != me.id:
-        await event.reply("Yooooo Vishu here!! wasupp !! See you within a minute!")
+    if event.is_private:
+        sender = await event.get_sender()
+        # Ensure it's not a message sent by yourself and not from a bot
+        if sender and not sender.bot and not sender.is_self:
+            await event.reply("Yooooo Vishu here!! wasupp !! See you within a minute!")
 
-print("Userbot is initiating connection...")
+print("Starting Telethon UserBot...")
 client.start()
-print("Userbot is online and listening!")
+print("UserBot is active and listening to DMs!")
 client.run_until_disconnected()
