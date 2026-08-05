@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 import urllib.request
 from datetime import datetime, timezone, timedelta
@@ -18,6 +19,7 @@ string_session = os.environ.get("STRING_SESSION")
 
 client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
+# Auto PM Reply
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
     if event.is_private:
@@ -31,19 +33,37 @@ async def pm_handler(event):
             except Exception:
                 pass
 
+# Self Command: .ping
+@client.on(events.NewMessage(outgoing=True, pattern=r'^\.ping$'))
+async def ping_handler(event):
+    start = time.time()
+    msg = await event.edit("⚡ `Pinging...`")
+    end = time.time()
+    ms = round((end - start) * 1000)
+    await msg.edit(f"🚀 **Pong!**\n⏱️ `Latency:` **{ms}ms**")
+
+# Self Command: .alive
+@client.on(events.NewMessage(outgoing=True, pattern=r'^\.alive$'))
+async def alive_handler(event):
+    alive_msg = (
+        "⚙️ **𝙑𝙞𝙨𝙝𝙪 𝙐𝙨𝙚𝙧𝙗𝙤𝙩 𝙞𝙨 𝘼𝙡𝙞𝙫𝙚 & 𝙍𝙪𝙣𝙣𝙞𝙣𝙜!**\n\n"
+        "👤 **Owner:** Vishesh\n"
+        "⚡ **Status:** Active & Protected\n"
+        "☁️ **Host:** Render Server\n\n"
+        "💭 *\"Silence isn't absence—it's focus.\"*"
+    )
+    await event.edit(alive_msg)
+
 async def update_bio():
-    """Builtin timedelta ki madad se IST time calculate karta hai"""
     ist = timezone(timedelta(hours=5, minutes=30))
     while True:
         try:
             now = datetime.now(ist)
             current_time = now.strftime("%I:%M %p")
             new_bio = f"⌚ {current_time} | 𝙎𝙞𝙡𝙚𝙣𝙘𝙚 𝙞𝙨𝙣'𝙩 𝙖𝙗𝙨𝙚𝙣𝙘𝙚—𝙞𝙩'𝙨 𝙛𝙤𝙘𝙪𝙨.⚡"
-            
             await client(UpdateProfileRequest(about=new_bio))
         except Exception as e:
             print(f"Bio update error: {e}")
-            
         await asyncio.sleep(60)
 
 async def keep_alive():
