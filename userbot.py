@@ -11,16 +11,17 @@ from telethon.sessions import StringSession
 from telethon.tl.functions.account import UpdateProfileRequest
 
 AUTO_REPLY_TEXT = """𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚.🚫
-𝙎𝙞𝙡𝙚𝙣𝙘𝙚 𝙞𝙨𝙣'𝙩 𝙖𝙗𝙨𝙚𝙣𝙘𝙚—𝙞𝙩'𝙨 𝙛𝙤𝙘𝙪𝙨. 𝙇𝙚𝙖𝙫𝙚 𝙮𝙤𝙪𝙧 𝙢𝙚𝙨𝙨𝙖𝙜𝙚. 𝙄'𝙡𝙡 𝙧𝙚𝙥𝙡𝙮 𝙉𝙤𝙩 𝙚𝙫𝙚𝙧𝙮 𝙢𝙚𝙨𝙨𝙖𝙜𝙚 𝙙𝙚𝙨𝙚𝙧𝙫𝙚𝙨 an 𝙞𝙣𝙨𝙩𝙖𝙣𝙩 𝙧𝙚𝙥𝙡𝙮. 𝙔𝙤𝙪𝙧𝙨 𝙝𝙖𝙨 𝙗𝙚𝙚𝙣 𝙧𝙚𝙘𝙚𝙞𝙫𝙚𝙙. 𝙬𝙝𝙚𝙣 𝙩𝙝𝙚 𝙩𝙞𝙢𝙚 𝙞𝙨 𝙧𝙞𝙜𝙝𝙩.𝙞𝙩 𝙬𝙞𝙡𝙡 𝙗𝙚 𝙨𝙚𝙚𝙣💭"""
+𝙎𝙞𝙡𝙚𝙣𝙘𝙚 𝙞𝙨𝙣'𝙩 𝙖𝙗𝙨𝙚𝙣𝙘𝙚—𝙞𝙩'𝙨 𝙛𝙤𝙘𝙪𝙨. 𝙇𝙚𝙖𝙫𝙚 𝙮𝙤𝙪𝙧 𝙢𝙚𝙨𝙨𝙖𝙜𝙚. 𝙄'𝙡𝙡 𝙧𝙚𝙥𝙡𝙮 𝙉𝙤𝙩 𝙚𝙫𝙚𝙧𝙮 𝙢𝙚𝙨𝙨𝙖𝙜𝙚 𝙙𝙚𝙨𝙚𝙧𝙫𝙚𝙨 𝙖𝙣 𝙞𝙣𝙨𝙩𝙖𝙣𝙩 𝙧𝙚𝙥𝙡𝙮. 𝙔𝙤𝙪𝙧𝙨 𝙝𝙖𝙨 𝙗𝙚𝙚𝙣 𝙧𝙚𝙘𝙚𝙞𝙫𝙚𝙙. 𝙬𝙝𝙚𝙣 𝙩𝙝𝙚 𝙩𝙞𝙢𝙚 𝙞𝙨 𝙧𝙞𝙜𝙝𝙩.𝙞𝙩 𝙬𝙞𝙡𝙡 𝙗𝙚 𝙨𝙚𝙚𝙣💭"""
 
 GROUP_TAG_REPLY = "🚫 𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚/busy. Don't spam tags, will check later! ⚡"
 
-# Auto Inactivity Tracker for Groups/General (10 Mins)
+# Auto Inactivity Tracker for General/Global (10 Mins)
 LAST_OUTGOING_TIME = time.time()
 INACTIVITY_THRESHOLD = 600  # 10 Minutes
 
-# Dictionary to track pending DM auto-replies so we can cancel them if user replies
+# Dictionaries to track pending tasks so we can cancel them if user replies in time
 PENDING_DM_TASKS = {}
+PENDING_GROUP_TASKS = {}
 
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
@@ -46,20 +47,24 @@ def to_supercell(text):
 def is_user_inactive():
     return (time.time() - LAST_OUTGOING_TIME) > INACTIVITY_THRESHOLD
 
-# Track outgoing messages
+# Track outgoing messages & cancel pending auto-replies for that specific chat
 @client.on(events.NewMessage(outgoing=True))
 async def activity_tracker(event):
     global LAST_OUTGOING_TIME
     LAST_OUTGOING_TIME = time.time()
+    chat_id = event.chat_id
     
-    # Agar user ne kisi chat mein message bheja, toh us chat ke pending DM auto-reply task ko cancel kar do!
-    if event.is_private:
-        chat_id = event.chat_id
-        if chat_id in PENDING_DM_TASKS:
-            PENDING_DM_TASKS[chat_id].cancel()
-            del PENDING_DM_TASKS[chat_id]
+    # Cancel DM pending task if user replied
+    if event.is_private and chat_id in PENDING_DM_TASKS:
+        PENDING_DM_TASKS[chat_id].cancel()
+        del PENDING_DM_TASKS[chat_id]
+        
+    # Cancel Group pending task if user replied
+    if (event.is_group or event.is_channel) and chat_id in PENDING_GROUP_TASKS:
+        PENDING_GROUP_TASKS[chat_id].cancel()
+        del PENDING_GROUP_TASKS[chat_id]
 
-# 1. Private Chat Auto-Reply (10 seconds timer + cancel if user replies back)
+# 1. Private Chat Auto-Reply (10s timer + Smart Cancel)
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
     if is_user_inactive() and event.is_private:
@@ -67,43 +72,50 @@ async def pm_handler(event):
         if sender and not sender.bot and not sender.is_self:
             chat_id = event.chat_id
             
-            # Agar pehle se koi task chal raha hai us chat mein, toh use cancel kar do
             if chat_id in PENDING_DM_TASKS:
                 PENDING_DM_TASKS[chat_id].cancel()
 
-            # Background task create karo 10 seconds ke liye
-            async def delayed_reply():
+            async def delayed_pm_reply():
                 try:
                     await asyncio.sleep(10) # 10 seconds timer
-                    # Timer khatam hone par check karo ki user ne beech mein message toh nahi bhej diya
                     if is_user_inactive():
                         msg = await client.get_messages(chat_id, ids=event.id)
                         if msg and not msg.out:
                             await event.reply(AUTO_REPLY_TEXT)
                 except asyncio.CancelledError:
-                    # Task cancel ho gaya matlab user ne pehle hi reply kar diya tha!
                     pass
                 finally:
                     if chat_id in PENDING_DM_TASKS:
                         del PENDING_DM_TASKS[chat_id]
 
-            PENDING_DM_TASKS[chat_id] = asyncio.create_task(delayed_reply())
+            PENDING_DM_TASKS[chat_id] = asyncio.create_task(delayed_pm_reply())
 
-# 2. Group Chat Mention Reply (Triggers after 10 mins of total inactivity)
+# 2. Group Chat Mention Reply (10s timer + Smart Cancel)
 @client.on(events.NewMessage(incoming=True))
 async def group_tag_handler(event):
     if is_user_inactive() and (event.is_group or event.is_channel):
         if event.mentioned:
             sender = await event.get_sender()
             if sender and not sender.is_self:
-                await asyncio.sleep(5)
-                try:
-                    if is_user_inactive():
-                        msg = await client.get_messages(event.chat_id, ids=event.id)
-                        if msg:
-                            await event.reply(GROUP_TAG_REPLY)
-                except Exception as e:
-                    print(f"Group tag reply error: {e}")
+                chat_id = event.chat_id
+                
+                if chat_id in PENDING_GROUP_TASKS:
+                    PENDING_GROUP_TASKS[chat_id].cancel()
+
+                async def delayed_group_reply():
+                    try:
+                        await asyncio.sleep(10) # 10 seconds timer
+                        if is_user_inactive():
+                            msg = await client.get_messages(chat_id, ids=event.id)
+                            if msg:
+                                await event.reply(GROUP_TAG_REPLY)
+                    except asyncio.CancelledError:
+                        pass
+                    finally:
+                        if chat_id in PENDING_GROUP_TASKS:
+                            del PENDING_GROUP_TASKS[chat_id]
+
+                PENDING_GROUP_TASKS[chat_id] = asyncio.create_task(delayed_group_reply())
 
 # 3. Supercell Font Command: .font <text>
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.font(?:\s+(.*))?'))
@@ -140,7 +152,7 @@ async def alive_handler(event):
         "👤 **Owner:** Vishesh\n"
         f"⚡ **Status:** {status_text}\n"
         "☁️ **Host:** Render Server\n"
-        "⏱️ **DM Timer:** 10s (Smart Cancel Enabled)\n\n"
+        "⏱️ **Timer:** 10s (DM & Group Smart Cancel Enabled)\n\n"
         "💭 *\"Silence isn't absence—it's focus.\"*"
     )
     await event.edit(alive_msg)
