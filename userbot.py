@@ -36,7 +36,7 @@ def to_supercell(text):
     }
     return "".join(mapping.get(c, c) for c in text)
 
-# 1. Private Chat Auto-Reply
+# 1. Private Chat Auto-Reply (with delay)
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
     if event.is_private:
@@ -50,16 +50,20 @@ async def pm_handler(event):
             except Exception:
                 pass
 
-# 2. Group Chat Mention / Tag Reply
+# 2. Group Chat Mention / Tag Reply (with natural filter/delay)
 @client.on(events.NewMessage(incoming=True))
 async def group_tag_handler(event):
     if event.is_group or event.is_channel:
         if event.mentioned:
             sender = await event.get_sender()
             if sender and not sender.is_self:
+                # 5 second delay taaki bot human-like lage aur instant spam na lage
+                await asyncio.sleep(5)
                 try:
-                    await asyncio.sleep(3)
-                    await event.reply(GROUP_TAG_REPLY)
+                    # Double check ki message abhi bhi valid hai ya nahi
+                    msg = await client.get_messages(event.chat_id, ids=event.id)
+                    if msg:
+                        await event.reply(GROUP_TAG_REPLY)
                 except Exception as e:
                     print(f"Group tag reply error: {e}")
 
@@ -95,7 +99,7 @@ async def alive_handler(event):
     alive_msg = (
         "⚙️ **𝙑𝙞𝙨𝙝𝙪 𝙐𝙨𝙚𝙧𝙗𝙤𝙩 𝙞𝙨 𝘼𝙡𝙞𝙫𝙚 & 𝙍𝙪𝙣𝙣𝙞𝙣𝙜!**\n\n"
         "👤 **Owner:** Vishesh\n"
-        "⚡ **Status:** Active & Protected (PM + GC Guard + Supercell Font)\n"
+        "⚡ **Status:** Active & Protected (Delayed PM/GC Guard + Supercell Font)\n"
         "☁️ **Host:** Render Server\n\n"
         "💭 *\"Silence isn't absence—it's focus.\"*"
     )
