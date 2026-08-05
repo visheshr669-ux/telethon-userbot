@@ -15,6 +15,10 @@ AUTO_REPLY_TEXT = """𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩�
 
 GROUP_TAG_REPLY = "🚫 𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚/busy. Don't spam tags, will check later! ⚡"
 
+# Auto Inactivity Tracker Variables
+LAST_OUTGOING_TIME = time.time()
+INACTIVITY_THRESHOLD = 600  # 10 Minutes (in seconds)
+
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 string_session = os.environ.get("STRING_SESSION")
@@ -36,34 +40,45 @@ def to_supercell(text):
     }
     return "".join(mapping.get(c, c) for c in text)
 
-# 1. Private Chat Auto-Reply (with delay)
+# Helper function to check inactivity
+def is_user_inactive():
+    return (time.time() - LAST_OUTGOING_TIME) > INACTIVITY_THRESHOLD
+
+# Track user's own outgoing messages to update active status automatically
+@client.on(events.NewMessage(outgoing=True))
+async def activity_tracker(event):
+    global LAST_OUTGOING_TIME
+    LAST_OUTGOING_TIME = time.time()
+
+# 1. Private Chat Auto-Reply (Triggers only after 10 mins of inactivity)
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
-    if event.is_private:
+    if is_user_inactive() and event.is_private:
         sender = await event.get_sender()
         if sender and not sender.bot and not sender.is_self:
             await asyncio.sleep(5)
             try:
-                msg = await client.get_messages(event.chat_id, ids=event.id)
-                if msg and not msg.out:
-                    await event.reply(AUTO_REPLY_TEXT)
+                # Double check ki inactivity abhi bhi active hai aur tumne reply nahi kiya
+                if is_user_inactive():
+                    msg = await client.get_messages(event.chat_id, ids=event.id)
+                    if msg and not msg.out:
+                        await event.reply(AUTO_REPLY_TEXT)
             except Exception:
                 pass
 
-# 2. Group Chat Mention / Tag Reply (with natural filter/delay)
+# 2. Group Chat Mention Reply (Triggers only after 10 mins of inactivity)
 @client.on(events.NewMessage(incoming=True))
 async def group_tag_handler(event):
-    if event.is_group or event.is_channel:
+    if is_user_inactive() and (event.is_group or event.is_channel):
         if event.mentioned:
             sender = await event.get_sender()
             if sender and not sender.is_self:
-                # 5 second delay taaki bot human-like lage aur instant spam na lage
                 await asyncio.sleep(5)
                 try:
-                    # Double check ki message abhi bhi valid hai ya nahi
-                    msg = await client.get_messages(event.chat_id, ids=event.id)
-                    if msg:
-                        await event.reply(GROUP_TAG_REPLY)
+                    if is_user_inactive():
+                        msg = await client.get_messages(event.chat_id, ids=event.id)
+                        if msg:
+                            await event.reply(GROUP_TAG_REPLY)
                 except Exception as e:
                     print(f"Group tag reply error: {e}")
 
@@ -96,11 +111,13 @@ async def ping_handler(event):
 # 5. Self Command: .alive
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.alive$'))
 async def alive_handler(event):
+    status_text = "💤 Inactive (Auto-AFK Active)" if is_user_inactive() else "🟢 Active & Online"
     alive_msg = (
         "⚙️ **𝙑𝙞𝙨𝙝𝙪 𝙐𝙨𝙚𝙧𝙗𝙤𝙩 𝙞𝙨 𝘼𝙡𝙞𝙫𝙚 & 𝙍𝙪𝙣𝙣𝙞𝙣𝙜!**\n\n"
         "👤 **Owner:** Vishesh\n"
-        "⚡ **Status:** Active & Protected (Delayed PM/GC Guard + Supercell Font)\n"
-        "☁️ **Host:** Render Server\n\n"
+        f"⚡ **Status:** {status_text}\n"
+        "☁️ **Host:** Render Server\n"
+        "🧠 **Detection:** Auto Inactivity (10 min)\n\n"
         "💭 *\"Silence isn't absence—it's focus.\"*"
     )
     await event.edit(alive_msg)
