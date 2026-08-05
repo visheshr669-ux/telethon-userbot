@@ -1,7 +1,20 @@
 import os
+import http.server
+import socketserver
+import threading
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
+# Port scanner fix for Render
+def run_dummy_server():
+    PORT = int(os.environ.get("PORT", 8080))
+    Handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+        httpd.serve_forever()
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+# Main Telethon Bot
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 string_session = os.environ.get("STRING_SESSION")
