@@ -13,13 +13,15 @@ from telethon.tl.functions.account import UpdateProfileRequest
 AUTO_REPLY_TEXT = """𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚.🚫
 𝙎𝙞𝙡𝙚𝙣𝙘𝙚 𝙞𝙨𝙣'𝙩 𝙖𝙗𝙨𝙚𝙣𝙘𝙚—𝙞𝙩'𝙨 𝙛𝙤𝙘𝙪𝙨. 𝙇𝙚𝙖𝙫𝙚 𝙮𝙤𝙪𝙧 𝙢𝙚𝙨𝙨𝙖𝙜𝙚. 𝙄'𝙡𝙡 𝙧𝙚𝙥𝙡𝙮 𝙉𝙤𝙩 𝙚𝙫𝙚𝙧𝙮 𝙢𝙚𝙨𝙨𝙖𝙜𝙚 𝙙𝙚𝙨𝙚𝙧𝙫𝙚𝙨 𝙖𝙣 𝙞𝙣𝙨𝙩𝙖𝙣𝙩 𝙧𝙚𝙥𝙡𝙮. 𝙔𝙤𝙪𝙧𝙨 𝙝𝙖𝙨 𝙗𝙚𝙚𝙣 𝙧𝙚𝙘𝙚𝙞𝙫𝙚𝙙. 𝙬𝙝𝙚𝙣 𝙩𝙝𝙚 𝙩𝙞𝙢𝙚 𝙞𝙨 𝙧𝙞𝙜𝙝𝙩.𝙞𝙩 𝙬𝙞𝙡𝙡 𝙗𝙚 𝙨𝙚𝙚𝙣💭"""
 
+GROUP_TAG_REPLY = "🚫 𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚/busy. Don't spam tags, will check later! ⚡"
+
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 string_session = os.environ.get("STRING_SESSION")
 
 client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
-# Auto PM Reply
+# 1. Private Chat Auto-Reply
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
     if event.is_private:
@@ -32,6 +34,21 @@ async def pm_handler(event):
                     await event.reply(AUTO_REPLY_TEXT)
             except Exception:
                 pass
+
+# 2. Group Chat Mention / Tag Reply
+@client.on(events.NewMessage(incoming=True))
+async def group_tag_handler(event):
+    if event.is_group or event.is_channel:
+        # Check if the message mentions the user
+        if event.mentioned:
+            sender = await event.get_sender()
+            if sender and not sender.is_self:
+                try:
+                    # Thoda delay taaki natural lage
+                    await asyncio.sleep(3)
+                    await event.reply(GROUP_TAG_REPLY)
+                except Exception as e:
+                    print(f"Group tag reply error: {e}")
 
 # Self Command: .ping
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.ping$'))
@@ -48,7 +65,7 @@ async def alive_handler(event):
     alive_msg = (
         "⚙️ **𝙑𝙞𝙨𝙝𝙪 𝙐𝙨𝙚𝙧𝙗𝙤𝙩 𝙞𝙨 𝘼𝙡𝙞𝙫𝙚 & 𝙍𝙪𝙣𝙣𝙞𝙣𝙜!**\n\n"
         "👤 **Owner:** Vishesh\n"
-        "⚡ **Status:** Active & Protected\n"
+        "⚡ **Status:** Active & Protected (PM + GC Guard)\n"
         "☁️ **Host:** Render Server\n\n"
         "💭 *\"Silence isn't absence—it's focus.\"*"
     )
