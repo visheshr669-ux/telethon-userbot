@@ -1,4 +1,6 @@
 import os
+import asyncio
+import requests
 from fastapi import FastAPI
 import uvicorn
 from telethon import TelegramClient, events
@@ -12,6 +14,18 @@ AUTO_REPLY_TEXT = """𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩�
 @app.get("/")
 def home():
     return {"status": "UserBot is online!"}
+
+# Self Ping Function to prevent Render sleep
+async def keep_alive():
+    url = os.environ.get("RENDER_EXTERNAL_URL")
+    while True:
+        await asyncio.sleep(300) # Ping every 5 minutes
+        if url:
+            try:
+                requests.get(url)
+                print("Keep-alive ping sent!")
+            except Exception as e:
+                print(f"Ping failed: {e}")
 
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
@@ -29,6 +43,7 @@ async def pm_handler(event):
 @app.on_event("startup")
 async def startup_event():
     await client.start()
+    asyncio.create_task(keep_alive())
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
