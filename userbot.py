@@ -1,16 +1,15 @@
-from telethon import TelegramClient, events
+import os
+from telethon import TelegramClient
+from telethon.sessions import StringSession
 
-api_id = 32073948
-api_hash = "a1815a567509a71bb138592c03b9984f"
+api_id = int(os.environ.get("API_ID"))
+api_hash = os.environ.get("API_HASH")
+string_session = os.environ.get("STRING_SESSION")
 
-client = TelegramClient("userbot", api_id, api_hash)
+client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
-@client.on(events.NewMessage(incoming=True))
-async def handler(event):
-    if event.is_private and not event.out:
-        await event.reply("Hey! I'm offline right now. I'll reply soon.")
-
+print("UserBot is starting...")
 client.start()
-print("UserBot is running...")
-client.run_until_disconnected()
+print("UserBot is running successfully!")
 
+client.run_until_disconnected()
