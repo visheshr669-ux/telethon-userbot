@@ -5,7 +5,7 @@ import threading
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-# Port scanner fix for Render
+# Render ke port scan error ko fix karne ke liye dummy server
 def run_dummy_server():
     PORT = int(os.environ.get("PORT", 8080))
     Handler = http.server.SimpleHTTPRequestHandler
@@ -14,7 +14,7 @@ def run_dummy_server():
 
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-# Main Telethon Bot
+# Main Telethon UserBot Code
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 string_session = os.environ.get("STRING_SESSION")
