@@ -1,8 +1,7 @@
 import os
 import asyncio
 import urllib.request
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
@@ -33,11 +32,11 @@ async def pm_handler(event):
                 pass
 
 async def update_bio():
-    """Har 1 minute mein Telegram bio par IST Time update karega"""
-    tz = pytz.timezone('Asia/Kolkata')
+    """Builtin timedelta ki madad se IST time calculate karta hai"""
+    ist = timezone(timedelta(hours=5, minutes=30))
     while True:
         try:
-            now = datetime.now(tz)
+            now = datetime.now(ist)
             current_time = now.strftime("%I:%M %p")
             new_bio = f"⌚ {current_time} | 𝙎𝙞𝙡𝙚𝙣𝙘𝙚 𝙞𝙨𝙣'𝙩 𝙖𝙗𝙨𝙚𝙣𝙘𝙚—𝙞𝙩'𝙨 𝙛𝙤𝙘𝙪𝙨.⚡"
             
@@ -45,7 +44,7 @@ async def update_bio():
         except Exception as e:
             print(f"Bio update error: {e}")
             
-        await asyncio.sleep(60)  # Updates every 60 seconds
+        await asyncio.sleep(60)
 
 async def keep_alive():
     url = os.environ.get("RENDER_EXTERNAL_URL")
@@ -61,7 +60,7 @@ async def keep_alive():
 async def lifespan(app: FastAPI):
     await client.start()
     asyncio.create_task(keep_alive())
-    asyncio.create_task(update_bio())  # Live Clock Bio Loop Started
+    asyncio.create_task(update_bio())
     yield
     await client.disconnect()
 
