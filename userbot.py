@@ -1,6 +1,6 @@
 import os
 import asyncio
-import requests
+import urllib.request
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
@@ -14,7 +14,15 @@ api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 string_session = os.environ.get("STRING_SESSION")
 
-client = TelegramClient(StringSession(string_session), api_id, api_hash)
+# Fixed session parameters to prevent security unpack error
+client = TelegramClient(
+    StringSession(string_session), 
+    api_id, 
+    api_hash,
+    receive_updates=True,
+    connection_retries=None,
+    auto_reconnect=True
+)
 
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
@@ -26,28 +34,26 @@ async def pm_handler(event):
 async def keep_alive():
     url = os.environ.get("RENDER_EXTERNAL_URL")
     while True:
-        await asyncio.sleep(240) # Every 4 minutes ping
+        await asyncio.sleep(240)
         if url:
             try:
-                requests.get(url, timeout=10)
+                urllib.request.urlopen(url, timeout=10)
             except Exception:
                 pass
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
     await client.start()
     asyncio.create_task(keep_alive())
     yield
-    # Shutdown logic
     await client.disconnect()
 
 app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
 def home():
-    return {"status": "UserBot is live and running 24/7!"}
+    return {"status": "UserBot is running!"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, workers=1)
