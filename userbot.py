@@ -1,6 +1,6 @@
 import os
 import asyncio
-import requests
+import urllib.request
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
@@ -21,13 +21,10 @@ async def pm_handler(event):
     if event.is_private:
         sender = await event.get_sender()
         if sender and not sender.bot and not sender.is_self:
-            # 10 seconds wait to check if you read/reply to the message
+            # 10 seconds delay - agar online ho aur reply/read kar do toh auto-reply ruk jaye
             await asyncio.sleep(10)
-            
-            # Re-fetch message status
             try:
                 msg = await client.get_messages(event.chat_id, ids=event.id)
-                # Send reply only if message is still unread / unanswered
                 if msg and not msg.out:
                     await event.reply(AUTO_REPLY_TEXT)
             except Exception:
@@ -39,7 +36,7 @@ async def keep_alive():
         await asyncio.sleep(240)
         if url:
             try:
-                requests.get(url, timeout=10)
+                urllib.request.urlopen(url, timeout=10)
             except Exception:
                 pass
 
