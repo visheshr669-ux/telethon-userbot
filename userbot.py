@@ -21,8 +21,8 @@ async def pm_handler(event):
     if event.is_private:
         sender = await event.get_sender()
         if sender and not sender.bot and not sender.is_self:
-            # 10 seconds delay - agar online ho aur reply/read kar do toh auto-reply ruk jaye
-            await asyncio.sleep(10)
+            # 5 seconds delay before triggering auto-reply
+            await asyncio.sleep(5)
             try:
                 msg = await client.get_messages(event.chat_id, ids=event.id)
                 if msg and not msg.out:
