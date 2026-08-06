@@ -15,7 +15,6 @@ AUTO_REPLY_TEXT = """𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩�
 
 GROUP_TAG_REPLY = "🚫 𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚/busy. Don't spam tags, will check later! ⚡"
 
-# Dictionaries to track pending tasks so we can cancel them if user replies in time
 PENDING_DM_TASKS = {}
 PENDING_GROUP_TASKS = {}
 
@@ -25,7 +24,6 @@ string_session = os.environ.get("STRING_SESSION")
 
 client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
-# Supercell Magic Style Text Converter
 def to_supercell(text):
     mapping = {
         'a': '𝗔', 'b': '𝗕', 'c': '𝗖', 'd': '𝗗', 'e': '𝗘', 'f': '𝗙', 'g': '𝗚', 'h': '𝗛',
@@ -40,20 +38,18 @@ def to_supercell(text):
     }
     return "".join(mapping.get(c, c) for c in text)
 
-# Track outgoing messages & cancel pending auto-replies for that specific chat
 @client.on(events.NewMessage(outgoing=True))
 async def activity_tracker(event):
     chat_id = event.chat_id
     
     if event.is_private and chat_id in PENDING_DM_TASKS:
         PENDING_DM_TASKS[chat_id].cancel()
-        del PENDING_DM_TASKS[chat_id]
+        PENDING_DM_TASKS.pop(chat_id, None)
         
     if (event.is_group or event.is_channel) and chat_id in PENDING_GROUP_TASKS:
         PENDING_GROUP_TASKS[chat_id].cancel()
-        del PENDING_GROUP_TASks[chat_id] if chat_id in PENDING_GROUP_TASKS else None
+        PENDING_GROUP_TASKS.pop(chat_id, None)
 
-# 1. Private Chat Auto-Reply (10s timer + Smart Cancel)
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
     if event.is_private:
@@ -66,19 +62,17 @@ async def pm_handler(event):
 
             async def delayed_pm_reply():
                 try:
-                    await asyncio.sleep(10) # 10 seconds timer
+                    await asyncio.sleep(10)
                     msg = await client.get_messages(chat_id, ids=event.id)
                     if msg and not msg.out:
                         await event.reply(AUTO_REPLY_TEXT)
                 except asyncio.CancelledError:
                     pass
                 finally:
-                    if chat_id in PENDING_DM_TASKS:
-                        del PENDING_DM_TASKS[chat_id]
+                    PENDING_DM_TASKS.pop(chat_id, None)
 
             PENDING_DM_TASKS[chat_id] = asyncio.create_task(delayed_pm_reply())
 
-# 2. Group Chat Mention Reply (Badass Spiderman / Matrix Style Dynamic Animation Sequence)
 @client.on(events.NewMessage(incoming=True))
 async def group_tag_handler(event):
     if event.is_group or event.is_channel:
@@ -92,31 +86,26 @@ async def group_tag_handler(event):
 
                 async def badass_animation_reply():
                     try:
-                        # 10 second total window before dropping final message
-                        await asyncio.sleep(7) 
+                        await asyncio.sleep(7)
                         
                         msg = await client.get_messages(chat_id, ids=event.id)
                         if msg:
-                            # Step 1: Badass Spiderman / Web-swinging loading sequence
                             anim_msg = await event.reply("🕸️ `[SPIDER-SENSE DETECTED]`\n⚡ *Initializing Web Protocol...*")
                             
                             await asyncio.sleep(1.5)
                             await anim_msg.edit("🕸️ `[MULTIVERSE GATEWAY]`\n🔴 *Swinging through dimensions...*")
                             
                             await asyncio.sleep(1.5)
-                            # Step 2: Delete animation frame and send final official offline card
                             await anim_msg.delete()
                             await event.reply(GROUP_TAG_REPLY)
                             
                     except asyncio.CancelledError:
                         pass
                     finally:
-                        if chat_id in PENDING_GROUP_TASKS:
-                            del PENDING_GROUP_TASKS[chat_id]
+                        PENDING_GROUP_TASKS.pop(chat_id, None)
 
                 PENDING_GROUP_TASKS[chat_id] = asyncio.create_task(badass_animation_reply())
 
-# 3. Supercell Font Command: .font <text>
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.font(?:\s+(.*))?'))
 async def font_handler(event):
     input_text = event.pattern_match.group(1)
@@ -133,7 +122,6 @@ async def font_handler(event):
     converted_text = f"⚔️ **{to_supercell(input_text)}** ⚡"
     await event.edit(converted_text)
 
-# 4. Self Command: .ping
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.ping$'))
 async def ping_handler(event):
     start = time.time()
@@ -142,7 +130,6 @@ async def ping_handler(event):
     ms = round((end - start) * 1000)
     await msg.edit(f"🚀 **Pong!**\n⏱️ `Latency:` **{ms}ms**")
 
-# 5. Self Command: .alive
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.alive$'))
 async def alive_handler(event):
     alive_msg = (
