@@ -13,10 +13,6 @@ from telethon.tl.functions.account import UpdateProfileRequest
 AUTO_REPLY_TEXT = """𝙑𝙞𝙨𝙝𝙪 𝙞𝙨 𝙘𝙪𝙧𝙧𝙚𝙣𝙩𝙡𝙮 𝙤𝙛𝙛𝙡𝙞𝙣𝙚.🚫
 𝙎𝙞𝙡𝙚𝙣𝙘𝙚 𝙞𝙨𝙣'𝙩 𝙖𝙗𝙨𝙚𝙣𝙘𝙚—𝙞𝙩'𝙨 𝙛𝙤𝙘𝙪𝙨. 𝙇𝙚𝙖𝙫𝙚 𝙮𝙤𝙪𝙧 𝙢𝙚𝙨𝙨𝙖𝙜𝙚. 𝙄'𝙡𝙡 𝙧𝙚𝙥𝙡𝙮 𝙉𝙤𝙩 𝙚𝙫𝙚𝙧𝙮 𝙢𝙚𝙨𝙨𝙖𝙜𝙚 𝙙𝙚𝙨𝙚𝙧𝙫𝙚𝙨 𝙖𝙣 𝙞𝙣𝙨𝙩𝙖𝙣𝙩 𝙧𝙚𝙥𝙡𝙮. 𝙔𝙤𝙪𝙧𝙨 𝙝𝙖𝙨 𝙗𝙚𝙚𝙣 𝙧𝙚𝙘𝙚𝙞𝙫𝙚𝙙. 𝙬𝙝𝙚𝙣 𝙩𝙝𝙚 𝙩𝙞𝙢𝙚 𝙞𝙨 𝙧𝙞𝙜𝙝𝙩.𝙞𝙩 𝙬𝙞𝙡𝙡 𝙗𝙚 𝙨𝙚𝙚𝙣💭"""
 
-# Auto Inactivity Tracker for DM (10 Mins)
-LAST_OUTGOING_TIME = time.time()
-INACTIVITY_THRESHOLD = 600  # 10 Minutes
-
 # Dictionary to track pending DM auto-replies
 PENDING_DM_TASKS = {}
 
@@ -41,39 +37,32 @@ def to_supercell(text):
     }
     return "".join(mapping.get(c, c) for c in text)
 
-def is_user_inactive():
-    return (time.time() - LAST_OUTGOING_TIME) > INACTIVITY_THRESHOLD
-
-# Track outgoing messages
+# Track outgoing messages & cancel pending DM reply if user replies in time
 @client.on(events.NewMessage(outgoing=True))
 async def activity_tracker(event):
-    global LAST_OUTGOING_TIME
-    LAST_OUTGOING_TIME = time.time()
     chat_id = event.chat_id
-    
-    # Cancel DM pending task if user replied
     if event.is_private and chat_id in PENDING_DM_TASKS:
         PENDING_DM_TASKS[chat_id].cancel()
         del PENDING_DM_TASKS[chat_id]
 
-# Private Chat Auto-Reply (10s timer + Smart Cancel)
+# Private Chat Auto-Reply (Direct 10s timer + Smart Cancel)
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
-    if is_user_inactive() and event.is_private:
+    if event.is_private:
         sender = await event.get_sender()
         if sender and not sender.bot and not sender.is_self:
             chat_id = event.chat_id
             
+            # Reset existing timer if a new message comes before 10s
             if chat_id in PENDING_DM_TASKS:
                 PENDING_DM_TASKS[chat_id].cancel()
 
             async def delayed_pm_reply():
                 try:
-                    await asyncio.sleep(10) # 10 seconds timer
-                    if is_user_inactive():
-                        msg = await client.get_messages(chat_id, ids=event.id)
-                        if msg and not msg.out:
-                            await event.reply(AUTO_REPLY_TEXT)
+                    await asyncio.sleep(10) # 10 seconds wait
+                    msg = await client.get_messages(chat_id, ids=event.id)
+                    if msg and not msg.out:
+                        await event.reply(AUTO_REPLY_TEXT)
                 except asyncio.CancelledError:
                     pass
                 finally:
@@ -86,7 +75,6 @@ async def pm_handler(event):
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.font(?:\s+(.*))?'))
 async def font_handler(event):
     input_text = event.pattern_match.group(1)
-    
     if not input_text and event.is_reply:
         reply_msg = await event.get_reply_message()
         if reply_msg and reply_msg.text:
@@ -111,13 +99,12 @@ async def ping_handler(event):
 # Self Command: .alive
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.alive$'))
 async def alive_handler(event):
-    status_text = "💤 Inactive (Auto-AFK Active)" if is_user_inactive() else "🟢 Active & Online"
     alive_msg = (
         "⚙️ **𝙑𝙞𝙨𝙝𝙪 𝙐𝙨𝙚𝙧𝙗𝙤𝙩 𝙞𝙨 𝘼𝙡𝙞𝙫𝙚 & 𝙍𝙪𝙣𝙣𝙞𝙣𝙜!**\n\n"
         "👤 **Owner:** Vishesh\n"
-        f"⚡ **Status:** {status_text}\n"
+        "⚡ **Status:** Active & Ready\n"
         "☁️ **Host:** Render Server\n"
-        "⏱️ **Timer:** 10s (DM Smart Cancel Enabled)\n\n"
+        "⏱️ **Timer:** Pure 10s DM Auto-Reply\n\n"
         "💭 *\"Silence isn't absence—it's focus.\"*"
     )
     await event.edit(alive_msg)
