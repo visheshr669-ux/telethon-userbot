@@ -45,17 +45,15 @@ def to_supercell(text):
 async def activity_tracker(event):
     chat_id = event.chat_id
     
-    # Cancel DM pending task if user replied
     if event.is_private and chat_id in PENDING_DM_TASKS:
         PENDING_DM_TASKS[chat_id].cancel()
         del PENDING_DM_TASKS[chat_id]
         
-    # Cancel Group pending task if user replied
     if (event.is_group or event.is_channel) and chat_id in PENDING_GROUP_TASKS:
         PENDING_GROUP_TASKS[chat_id].cancel()
-        del PENDING_GROUP_TASKS[chat_id]
+        del PENDING_GROUP_TASks[chat_id] if chat_id in PENDING_GROUP_TASKS else None
 
-# 1. Private Chat Auto-Reply (10s timer + Instant Smart Cancel)
+# 1. Private Chat Auto-Reply (10s timer + Smart Cancel)
 @client.on(events.NewMessage(incoming=True))
 async def pm_handler(event):
     if event.is_private:
@@ -80,7 +78,7 @@ async def pm_handler(event):
 
             PENDING_DM_TASKS[chat_id] = asyncio.create_task(delayed_pm_reply())
 
-# 2. Group Chat Mention Reply (10s timer + Instant Smart Cancel)
+# 2. Group Chat Mention Reply (Badass Spiderman / Matrix Style Dynamic Animation Sequence)
 @client.on(events.NewMessage(incoming=True))
 async def group_tag_handler(event):
     if event.is_group or event.is_channel:
@@ -92,19 +90,31 @@ async def group_tag_handler(event):
                 if chat_id in PENDING_GROUP_TASKS:
                     PENDING_GROUP_TASKS[chat_id].cancel()
 
-                async def delayed_group_reply():
+                async def badass_animation_reply():
                     try:
-                        await asyncio.sleep(10) # 10 seconds timer
+                        # 10 second total window before dropping final message
+                        await asyncio.sleep(7) 
+                        
                         msg = await client.get_messages(chat_id, ids=event.id)
                         if msg:
+                            # Step 1: Badass Spiderman / Web-swinging loading sequence
+                            anim_msg = await event.reply("🕸️ `[SPIDER-SENSE DETECTED]`\n⚡ *Initializing Web Protocol...*")
+                            
+                            await asyncio.sleep(1.5)
+                            await anim_msg.edit("🕸️ `[MULTIVERSE GATEWAY]`\n🔴 *Swinging through dimensions...*")
+                            
+                            await asyncio.sleep(1.5)
+                            # Step 2: Delete animation frame and send final official offline card
+                            await anim_msg.delete()
                             await event.reply(GROUP_TAG_REPLY)
+                            
                     except asyncio.CancelledError:
                         pass
                     finally:
                         if chat_id in PENDING_GROUP_TASKS:
                             del PENDING_GROUP_TASKS[chat_id]
 
-                PENDING_GROUP_TASKS[chat_id] = asyncio.create_task(delayed_group_reply())
+                PENDING_GROUP_TASKS[chat_id] = asyncio.create_task(badass_animation_reply())
 
 # 3. Supercell Font Command: .font <text>
 @client.on(events.NewMessage(outgoing=True, pattern=r'^\.font(?:\s+(.*))?'))
@@ -140,7 +150,7 @@ async def alive_handler(event):
         "👤 **Owner:** Vishesh\n"
         "⚡ **Status:** Active & Ready\n"
         "☁️ **Host:** Render Server\n"
-        "⏱️ **Timer:** Pure 10s (Direct Smart Cancel)\n\n"
+        "🕷️ **GC Feature:** Spiderman Dynamic Animation Sequence + Smart Cancel\n\n"
         "💭 *\"Silence isn't absence—it's focus.\"*"
     )
     await event.edit(alive_msg)
